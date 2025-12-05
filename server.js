@@ -11,7 +11,6 @@ app.get("/", (req, res) => {
   res.send("API berjalan dengan benar");
 });
 
-
 // === Sesuaikan URL dengan server mahasiswa masing-masing ===
 const URL_VENDOR_A = "https://vendor-a-intero.vercel.app/api/vendor-a/products";
 const URL_VENDOR_B = "https://vendorb-prod.vercel.app/vendor-b/fashion";
@@ -26,54 +25,57 @@ function normalizeVendorA(item) {
   const harga = parseInt(item.hrg); // string → integer
 
   // diskon 10%
-  const diskon = harga * 0.10;
+  const diskon = harga * 0.1;
   const harga_final = harga - diskon;
 
   return {
-        vendor: "Vendor A (Warung Klontong)",
-        kd_produk: p.kd_produk,
-        nm_brg: p.nm_brg,
-        hrg: hargaAsli,
-        diskon: "10%",
-        harga_diskon: hargaFinal,
-        ket_stok: p.ket_stok
-    };
+    vendor: "Vendor A (Warung Klontong)",
+    kd_produk: item.kd_produk,
+    nm_brg: item.nm_brg,
+    hrg: harga,
+    diskon: "10%",
+    harga_diskon: harga_final,
+    ket_stok: item.ket_stok
+  };
 }
 
 // --- Normalisasi Vendor B (Mahasiswa 2) ---
 function normalizeVendorB(item) {
   return {
     vendor: "Vendor B (Distro Fashion)",
-    sku: p.sku,
-    productName: p.productName,
-    price: p.price,
-    isAvailable: p.isAvailable,
+    sku: item.sku,
+    productName: item.productName,
+    price: item.price,
+    isAvailable: item.isAvailable,
   };
 }
 
 // --- Normalisasi Vendor C (Mahasiswa 3) ---
 function normalizeVendorC(item) {
-  let finalName = item.details.name;
+  // Asumsi: item memiliki struktur seperti:
+  // { id, details: { name, category }, pricing: { base_price, tax, harga_final }, stock }
 
-  // Tambahkan label Recommended jika Food
-  if (item.details.category === "Food") {
+  let finalName = item.details?.name || "Tidak diketahui";
+
+  // Tambahkan label Recommended jika kategori Food
+  if (item.details?.category === "Food") {
     finalName += " (Recommended)";
   }
 
- return {
-        vendor: "Vendor C (Resto dan Kuliner)",
-        id: p.id,
-        details: {
-            name: nama,
-            category: p.category,
-        },
-        pricing: {
-           base_price: p.base_price,
-           tax: p.tax,
-           harga_final: p.harga_final,
-        },     
-        stock: p.stock > 0 ? "ada" : "habis",
-    };
+  return {
+    vendor: "Vendor C (Resto dan Kuliner)",
+    id: item.id,
+    details: {
+      name: finalName,
+      category: item.details?.category || "Unknown",
+    },
+    pricing: {
+      base_price: item.pricing?.base_price || 0,
+      tax: item.pricing?.tax || 0,
+      harga_final: item.pricing?.harga_final || 0,
+    },
+    stock: (item.stock > 0) ? "ada" : "habis",
+  };
 }
 
 // ============================================================
@@ -89,18 +91,20 @@ app.get("/aggregate", async (req, res) => {
       axios.get(URL_VENDOR_C),
     ]);
 
+    // Normalisasi data
     const vendorAData = v1.data.map(normalizeVendorA);
     const vendorBData = v2.data.map(normalizeVendorB);
-    const vendorCData = v3.data.data
-      ? v3.data.data.map(normalizeVendorC)
-      : v3.data.map(normalizeVendorC);
+
+    // Vendor C: pastikan struktur datanya benar (cek apakah ada nested `data`)
+    const vendorCRaw = v3.data.data ? v3.data.data : v3.data;
+    const vendorCData = vendorCRaw.map(normalizeVendorC);
 
     // Gabungkan semua menjadi satu format seragam
     const finalOutput = [
       ...vendorAData,
       ...vendorBData,
       ...vendorCData
-    ];
+    ].filter(Boolean); // Hapus null/undefined jika ada
 
     res.json({
       success: true,
