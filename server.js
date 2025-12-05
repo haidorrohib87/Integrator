@@ -55,7 +55,7 @@ function normalizeVendorC(item) {
   let finalName = item.details?.name || "Tidak diketahui";
 
   // Tambahkan label Recommended jika kategori Food
-   if (item.details.toLowerCase() === "makanan") {
+  if (item.details?.category?.toLowerCase() === "makanan") {
         nama = `${nama} (Recommended)`;
     }
 
