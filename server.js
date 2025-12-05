@@ -11,18 +11,15 @@ app.get("/", (req, res) => {
   res.send("API berjalan dengan benar");
 });
 
-// === Sesuaikan URL dengan server mahasiswa masing-masing ===
+//Sesuaikan URL dengan server mahasiswa masing-masing
 const URL_VENDOR_A = "https://vendor-a-intero.vercel.app/api/vendor-a/products";
 const URL_VENDOR_B = "https://vendorb-prod.vercel.app/vendor-b/fashion";
 const URL_VENDOR_C = "https://vendor-c-intero.vercel.app/products";
 
-// ============================================================
-//                 FUNGSI NORMALISASI DATA
-// ============================================================
-
-// --- Normalisasi Vendor A (Mahasiswa 1) ---
+//FUNGSI NORMALISASI DATA
+//Normalisasi Vendor A (Mahasiswa 1)
 function normalizeVendorA(item) {
-  const harga = parseInt(item.hrg); // string → integer
+  const harga = parseInt(item.hrg);
 
   // diskon 10%
   const diskon = harga * 0.1;
@@ -39,7 +36,7 @@ function normalizeVendorA(item) {
   };
 }
 
-// --- Normalisasi Vendor B (Mahasiswa 2) ---
+//Normalisasi Vendor B (Mahasiswa 2)
 function normalizeVendorB(item) {
   return {
     vendor: "Vendor B (Distro Fashion)",
@@ -78,13 +75,11 @@ function normalizeVendorC(item) {
   };
 }
 
-// ============================================================
-//               ROUTE UTAMA AGGREGASI DATA
-// ============================================================
 
+//ROUTE UTAMA AGGREGASI DATA
 app.get("/aggregate", async (req, res) => {
   try {
-    // --- Ambil data dari tiga vendor ---
+    // Ambil data dari tiga vendor
     const [v1, v2, v3] = await Promise.all([
       axios.get(URL_VENDOR_A),
       axios.get(URL_VENDOR_B),
@@ -95,7 +90,7 @@ app.get("/aggregate", async (req, res) => {
     const vendorAData = v1.data.map(normalizeVendorA);
     const vendorBData = v2.data.map(normalizeVendorB);
 
-    // Vendor C: pastikan struktur datanya benar (cek apakah ada nested `data`)
+    // Vendor C: pastikan struktur datanya benar
     const vendorCRaw = v3.data.data ? v3.data.data : v3.data;
     const vendorCData = vendorCRaw.map(normalizeVendorC);
 
@@ -104,7 +99,7 @@ app.get("/aggregate", async (req, res) => {
       ...vendorAData,
       ...vendorBData,
       ...vendorCData
-    ].filter(Boolean); // Hapus null/undefined jika ada
+    ].filter(Boolean);
 
     res.json({
       success: true,
@@ -122,9 +117,6 @@ app.get("/aggregate", async (req, res) => {
   }
 });
 
-// ============================================================
-//                    JALANKAN SERVER
-// ============================================================
 
 const PORT = 4000;
 app.listen(PORT, () => {
