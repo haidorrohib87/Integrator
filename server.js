@@ -55,9 +55,9 @@ function normalizeVendorC(item) {
   let finalName = item.details?.name || "Tidak diketahui";
 
   // Tambahkan label Recommended jika kategori Food
-  if (item.details?.category === "Makanan") {
-    finalName += " (Recommended)";
-  }
+   if (item.category.toLowerCase() === "makanan") {
+        nama = `${nama} (Recommended)`;
+    }
 
   return {
     vendor: "Vendor C (Resto dan Kuliner)",
