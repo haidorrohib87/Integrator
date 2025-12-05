@@ -11,17 +11,19 @@ app.get("/", (req, res) => {
   res.send("API berjalan dengan benar");
 });
 
-//Sesuaikan URL dengan server mahasiswa masing-masing
+// === URL VENDOR (tanpa spasi di akhir!) ===
 const URL_VENDOR_A = "https://vendor-a-intero.vercel.app/api/vendor-a/products";
 const URL_VENDOR_B = "https://vendorb-prod.vercel.app/vendor-b/fashion";
 const URL_VENDOR_C = "https://vendor-c-intero.vercel.app/products";
 
-//FUNGSI NORMALISASI DATA
-//Normalisasi Vendor A (Mahasiswa 1)
-function normalizeVendorA(item) {
-  const harga = parseInt(item.hrg);
+// ============================================================
+//                 FUNGSI NORMALISASI DATA
+// ============================================================
 
-  // diskon 10%
+// --- Normalisasi Vendor A ---
+function normalizeVendorA(item) {
+  if (!item) return null;
+  const harga = parseInt(item.hrg) || 0;
   const diskon = harga * 0.1;
   const harga_final = harga - diskon;
 
@@ -36,8 +38,9 @@ function normalizeVendorA(item) {
   };
 }
 
-//Normalisasi Vendor B (Mahasiswa 2)
+// --- Normalisasi Vendor B ---
 function normalizeVendorB(item) {
+  if (!item) return null;
   return {
     vendor: "Vendor B (Distro Fashion)",
     sku: item.sku,
@@ -47,24 +50,25 @@ function normalizeVendorB(item) {
   };
 }
 
-// --- Normalisasi Vendor C (Mahasiswa 3) ---
+// --- Normalisasi Vendor C ---
 function normalizeVendorC(item) {
-  // Asumsi: item memiliki struktur seperti:
-  // { id, details: { name, category }, pricing: { base_price, tax, harga_final }, stock }
+  if (!item) return null;
 
-  let finalName = item.details?.name || "Tidak diketahui";
+  const name = item.details?.name || "Tidak diketahui";
+  const category = (item.details?.category || "").toString();
 
-  // Tambahkan label Recommended jika kategori Food
-   if (item.details.toLowerCase() === "makanan") {
-        nama = `${nama} (Recommended)`;
-    }
+  let finalName = name;
+  // Cek jika kategori adalah "makanan" (case-insensitive)
+  if (category.toLowerCase() === "makanan") {
+    finalName += " (Recommended)";
+  }
 
   return {
     vendor: "Vendor C (Resto dan Kuliner)",
     id: item.id,
     details: {
       name: finalName,
-      category: item.details?.category || "Unknown",
+      category: category,
     },
     pricing: {
       base_price: item.pricing?.base_price || 0,
@@ -75,31 +79,37 @@ function normalizeVendorC(item) {
   };
 }
 
+// ============================================================
+//               ROUTE UTAMA AGGREGASI DATA
+// ============================================================
 
-//ROUTE UTAMA AGGREGASI DATA
 app.get("/aggregate", async (req, res) => {
   try {
-    // Ambil data dari tiga vendor
+    // Ambil data dari tiga vendor secara paralel
     const [v1, v2, v3] = await Promise.all([
       axios.get(URL_VENDOR_A),
       axios.get(URL_VENDOR_B),
       axios.get(URL_VENDOR_C),
     ]);
 
+    // Pastikan respons berisi array
+    const vendorAArray = Array.isArray(v1.data) ? v1.data : [];
+    const vendorBArray = Array.isArray(v2.data) ? v2.data : [];
+    const vendorCArray = v3.data.data && Array.isArray(v3.data.data)
+      ? v3.data.data
+      : Array.isArray(v3.data) ? v3.data : [];
+
     // Normalisasi data
-    const vendorAData = v1.data.map(normalizeVendorA);
-    const vendorBData = v2.data.map(normalizeVendorB);
+    const vendorAData = vendorAArray.map(normalizeVendorA).filter(Boolean);
+    const vendorBData = vendorBArray.map(normalizeVendorB).filter(Boolean);
+    const vendorCData = vendorCArray.map(normalizeVendorC).filter(Boolean);
 
-    // Vendor C: pastikan struktur datanya benar
-    const vendorCRaw = v3.data.data ? v3.data.data : v3.data;
-    const vendorCData = vendorCRaw.map(normalizeVendorC);
-
-    // Gabungkan semua menjadi satu format seragam
+    // Gabungkan semua data
     const finalOutput = [
       ...vendorAData,
       ...vendorBData,
       ...vendorCData
-    ].filter(Boolean);
+    ];
 
     res.json({
       success: true,
@@ -108,8 +118,8 @@ app.get("/aggregate", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("ERROR AGGREGATOR:", err.message);
-    res.status(500).json({ 
+    console.error("ERROR AGGREGATOR:", err);
+    res.status(500).json({
       success: false,
       error: "Gagal mengambil atau menggabungkan data vendor",
       details: err.message
@@ -117,6 +127,9 @@ app.get("/aggregate", async (req, res) => {
   }
 });
 
+// ============================================================
+//                    JALANKAN SERVER
+// ============================================================
 
 const PORT = 4000;
 app.listen(PORT, () => {
